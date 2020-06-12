@@ -4,12 +4,12 @@
 Using [US Census data](https://www2.census.gov/programs-surveys/popest/datasets/2010-2019/counties/totals/) 
 (population estimates for 2019) per county with 
 [2019 Novel Coronavirus COVID-19 (2019-nCoV) Data Repository by Johns Hopkins CSSE](https://github.com/CSSEGISandData/COVID-19)
-compute confirmed cases as a percent of the county population for the present and the following time ranges:
+compute confirmed cases as a percent of the county population as of the last reported date and within the following time periods:
 * Last 30 days
 * Last 14 days
 * Last 7 days
 
-For the same time range also compute increase/decrease rates and tangent.
+For the same time ranges also compute increase/decrease rates and tangent.
 
 Using the computed fields define `trend` as follows:
 * `rising`: If the tangent is increasing across 30, 14 and 7 day windows
