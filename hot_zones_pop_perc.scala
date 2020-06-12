@@ -81,7 +81,8 @@ val (lastDate, minus7Date, minus14Date, minus30Date) = (allCols(lastIndex), allC
 
 // COMMAND ----------
 
-val cases_ts_us_with_pop_stats_prep = cases_ts_us_with_pop.withColumn("last_30", col(lastDate) - col(minus30Date))
+val cases_ts_us_with_pop_stats_prep = cases_ts_us_with_pop.filter(col(lastDate).isNotNull)
+                                                     .withColumn("last_30", col(lastDate) - col(minus30Date))
                                                      .withColumn("last_14", col(lastDate) - col(minus14Date))
                                                      .withColumn("last_7", col(lastDate) - col(minus7Date))
                                                      .withColumn("per_pop_confirmed", col(lastDate) * 100 / 'POPESTIMATE2019)
@@ -97,21 +98,32 @@ val cases_ts_us_with_pop_stats_prep = cases_ts_us_with_pop.withColumn("last_30",
                                                      .withColumn("trend", when('tangent_30 <= 'tangent_14 && 'tangent_14 <= 'tangent_7, "rising")
                                                                          .when('tangent_30 > 'tangent_14 && 'tangent_14 > 'tangent_7, "lowering")
                                                                          .otherwise("leveling"))
+                                                     .withColumn("days_till_2021", datediff(lit("2021-01-01").cast("date"), to_date(lit(lastDate), "MM/dd/yy")))
+                                                     .withColumn("per_confirmed_by2021_30", 'per_pop_confirmed + 'days_till_2021 * 'per_pop_confirmed_30 / lit(30))
+                                                     .withColumn("per_confirmed_by2021_14", 'per_pop_confirmed + 'days_till_2021 * 'per_pop_confirmed_14 / lit(14))
+                                                     .withColumn("per_confirmed_by2021_7", 'per_pop_confirmed + 'days_till_2021 * 'per_pop_confirmed_7 / lit(7))
+                                                     .drop("days_till_2021")
 val (colsLen, newColsStart) = (cases_ts_us_with_pop_stats_prep.columns.size, cases_ts_us_with_pop_stats_prep.columns.indexOf(lastDate))
 val cols = Seq(minus30Date, minus14Date, minus7Date) ++ 
             cases_ts_us_with_pop_stats_prep.columns.slice(newColsStart, colsLen) ++ 
             (cases_ts_us_with_pop_stats_prep.columns.slice(0, newColsStart).toBuffer -- Seq(minus30Date, minus14Date, minus7Date))
 val cases_ts_us_with_pop_stats = cases_ts_us_with_pop_stats_prep.select(cols.map(col(_)): _*)
-display(cases_ts_us_with_pop_stats)
+display(cases_ts_us_with_pop_stats.sort('per_confirmed_by2021_14.desc))
 
 // COMMAND ----------
 
-val hot_zones = cases_ts_us_with_pop_stats.filter('trend === "rising" && ('per_pop_confirmed_30 >= 1 || 'per_pop_confirmed_14 >= 1 || 'per_pop_confirmed_7 >= 1)) // 14
+(cases_ts_us_with_pop_stats.filter('per_confirmed_by2021_30 > 15).count, 
+ cases_ts_us_with_pop_stats.filter('per_confirmed_by2021_14 > 15).count,
+ cases_ts_us_with_pop_stats.filter('per_confirmed_by2021_7 > 15).count)
+
+// COMMAND ----------
+
+// the 1% and 15% thresholds are arbitrary here
+val hot_zones = cases_ts_us_with_pop_stats
+      .filter(('trend === "rising" && ('per_pop_confirmed_30 >= 1 || 'per_pop_confirmed_14 >= 1 || 'per_pop_confirmed_7 >= 1)) || // 14
+              ('per_confirmed_by2021_30 > 15 || 'per_confirmed_by2021_14 > 15 || 'per_confirmed_by2021_7 > 15)) // 23
+
 display(hot_zones)
-
-// COMMAND ----------
-
-
 
 // COMMAND ----------
 
